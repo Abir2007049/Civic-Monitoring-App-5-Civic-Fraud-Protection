@@ -10,6 +10,7 @@ import 'threat_intelligence_screen.dart';
 import 'message_spam_screen.dart';
 import 'call_spam_screen.dart';
 import 'realtime_protection_screen.dart';
+import 'api_configuration_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -102,6 +103,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     MaterialPageRoute(builder: (context) => const RealTimeProtectionScreen()),
                   );
                   break;
+                case 'api_config':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ApiConfigurationScreen()),
+                  );
+                  break;
               }
             },
             itemBuilder: (context) => [
@@ -145,6 +152,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: ListTile(
                   leading: Icon(Icons.shield),
                   title: Text('Real-Time Protection'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'api_config',
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text('API Configuration'),
                 ),
               ),
             ],

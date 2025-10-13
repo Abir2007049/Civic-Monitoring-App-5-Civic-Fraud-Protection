@@ -1,13 +1,26 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
 class ThreatIntelligenceService {
-  // Mock API endpoints - in production, use real threat intelligence APIs
-  static const _mockApiBase = 'https://api.example.com'; // Replace with real API
+  // Real API endpoints for threat intelligence
+  static const _abuseIpDbBase = 'https://api.abuseipdb.com/api/v2';
+  static const _safeBrowsingBase = 'https://safebrowsing.googleapis.com/v4/threatMatches:find';
+  static const _fraudScoreBase = 'https://ipqualityscore.com/api/json/phone';
   
   // In-memory cache for API responses
   final Map<String, Map<String, dynamic>> _cache = {};
+
+  /// Get saved API keys from shared preferences
+  Future<Map<String, String>> _getApiKeys() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'abuseipdb': prefs.getString('abuseipdb_api_key') ?? '',
+      'safe_browsing': prefs.getString('safe_browsing_api_key') ?? '',
+      'fraudscore': prefs.getString('fraudscore_api_key') ?? '',
+    };
+  }
   
   Future<Map<String, dynamic>> checkNumberWithAPI(String number, {String? apiKey}) async {
     // Check cache first
@@ -19,15 +32,32 @@ class ThreatIntelligenceService {
       }
     }
 
+    // Get API keys if not provided
+    final keys = await _getApiKeys();
+    final useApiKey = apiKey ?? keys['abuseipdb'] ?? '';
+    
+    // If no API key available, use enhanced mock response
+    if (useApiKey.isEmpty) {
+      return _getMockResponse(number);
+    }
+
     try {
-      // Mock API call - replace with real threat intelligence API
+      // Try FraudScore API first for phone numbers
+      if (keys['fraudscore']!.isNotEmpty) {
+        final fraudResult = await checkPhoneWithFraudScore(number, apiKey: keys['fraudscore']!);
+        if (fraudResult['source'] == 'FraudScore') {
+          return fraudResult;
+        }
+      }
+
+      // Fallback to AbuseIPDB for general reputation
       final response = await http.get(
-        Uri.parse('$_mockApiBase/check-number?number=$number'),
+        Uri.parse('$_abuseIpDbBase/check'),
         headers: {
-          'Authorization': 'Bearer ${apiKey ?? 'demo-key'}',
-          'Content-Type': 'application/json',
+          'Key': useApiKey,
+          'Accept': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -45,16 +75,37 @@ class ThreatIntelligenceService {
   }
 
   Future<Map<String, dynamic>> checkURLWithAPI(String url, {String? apiKey}) async {
+    // Get saved API keys
+    final keys = await _getApiKeys();
+    final useApiKey = apiKey ?? keys['safe_browsing'] ?? '';
+    
+    // If no API key, use mock response
+    if (useApiKey.isEmpty) {
+      return _getMockURLResponse(url);
+    }
+
     try {
-      // Mock URL reputation check
+      // Google Safe Browsing API for URL checking
+      final requestBody = {
+        'client': {
+          'clientId': 'civic-fraud-protection',
+          'clientVersion': '1.0.0'
+        },
+        'threatInfo': {
+          'threatTypes': ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE'],
+          'platformTypes': ['ANY_PLATFORM'],
+          'threatEntryTypes': ['URL'],
+          'threatEntries': [{'url': url}]
+        }
+      };
+      
       final response = await http.post(
-        Uri.parse('$_mockApiBase/check-url'),
+        Uri.parse('$_safeBrowsingBase?key=$useApiKey'),
         headers: {
-          'Authorization': 'Bearer ${apiKey ?? 'demo-key'}',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'url': url}),
-      ).timeout(const Duration(seconds: 10));
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -63,6 +114,51 @@ class ThreatIntelligenceService {
       }
     } catch (e) {
       return _getMockURLResponse(url);
+    }
+  }
+
+  /// Check phone number using FraudScore API for advanced reputation analysis
+  Future<Map<String, dynamic>> checkPhoneWithFraudScore(String phoneNumber, {required String apiKey}) async {
+    if (apiKey.isEmpty) {
+      return _getMockResponse(phoneNumber);
+    }
+
+    try {
+      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+      final response = await http.get(
+        Uri.parse('$_fraudScoreBase/$apiKey/$cleanPhone'),
+        headers: {
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // Transform FraudScore response to our format
+        return {
+          'phone': phoneNumber,
+          'risk_score': data['fraud_score'] ?? 0,
+          'carrier': data['carrier'] ?? 'Unknown',
+          'line_type': data['line_type'] ?? 'Unknown',
+          'country': data['country'] ?? 'Unknown',
+          'region': data['region'] ?? 'Unknown',
+          'city': data['city'] ?? 'Unknown',
+          'valid': data['valid'] ?? false,
+          'active': data['active'] ?? false,
+          'recent_abuse': data['recent_abuse'] ?? false,
+          'leaked': data['leaked'] ?? false,
+          'spammer': data['spammer'] ?? false,
+          'risky': data['risky'] ?? false,
+          'reputation': data['reputation'] ?? 'unknown',
+          'source': 'FraudScore',
+          'checked_at': DateTime.now().toIso8601String(),
+        };
+      } else {
+        return _getMockResponse(phoneNumber);
+      }
+    } catch (e) {
+      return _getMockResponse(phoneNumber);
     }
   }
 

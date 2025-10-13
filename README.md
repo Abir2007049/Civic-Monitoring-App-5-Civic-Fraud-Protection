@@ -51,14 +51,34 @@ A comprehensive Flutter application that provides advanced fraud detection and i
 flutter pub get
 ```
 
-2. Configure API keys in the service files:
-   - `lib/services/fraud_intelligence_service.dart`
-   - `lib/services/number_reputation_service.dart`
-
-3. Run the application
+2. Run the application
 ```bash
 flutter run
 ```
+
+3. Configure API keys (optional for enhanced protection):
+   - Open the app and go to **Menu → API Configuration**
+   - Add your API keys for real-time threat intelligence
+   - Test connections to verify setup
+
+### 🔑 API Configuration
+
+The app works perfectly without API keys using local fraud detection, but real APIs provide enhanced global threat intelligence:
+
+#### AbuseIPDB (Free Tier Available)
+- **Purpose**: IP reputation and abuse reports
+- **Setup**: Visit [abuseipdb.com](https://abuseipdb.com) → Create account → Get API key
+- **Free Tier**: 1,000 requests/day
+
+#### Google Safe Browsing (Free)
+- **Purpose**: URL safety and malware detection  
+- **Setup**: [Google Cloud Console](https://console.cloud.google.com) → Enable Safe Browsing API → Create credentials
+- **Free Tier**: 10,000 requests/day
+
+#### FraudScore/IPQualityScore (Free Tier Available)  
+- **Purpose**: Phone number validation and fraud scoring
+- **Setup**: Visit [ipqualityscore.com](https://ipqualityscore.com) → Sign up → Get API key
+- **Free Tier**: 5,000 requests/month
 
 ## 📱 Key Features Implemented
 
@@ -125,17 +145,46 @@ flutter run
 - READ_CALL_LOG, ANSWER_PHONE_CALLS for call protection
 - INTERNET for threat intelligence APIs
 
-### API Keys Needed
-- AbuseIPDB API key
-- FraudScore API key  
-- Google Safe Browsing API key
+### API Keys (Optional)
+- **AbuseIPDB**: IP reputation checking (1k free requests/day)
+- **FraudScore**: Phone validation (5k free requests/month)  
+- **Google Safe Browsing**: URL safety (10k free requests/day)
+- **Note**: App works fully without API keys using local detection
 
 ## 🔮 Next Steps
 
-1. **API Configuration**: Add your API keys to the service files
-2. **Testing**: Run on physical device for full functionality
-3. **Customization**: Adjust protection levels and filters
-4. **Monitoring**: Review dashboard and alerts regularly
+1. **Basic Usage**: App is fully functional out of the box with local fraud detection
+2. **Enhanced Protection**: Add API keys in-app (Menu → API Configuration) for global threat intelligence
+3. **Customization**: Adjust protection levels and filters in Real-Time Protection screen
+4. **Testing**: Use demo modes in each feature to see comprehensive protection capabilities
+5. **Monitoring**: Review dashboard and alerts regularly for security insights
+
+## 📋 API Setup Guide
+
+### Quick Setup (In-App)
+1. Launch the app
+2. Tap the **3-dot menu** in the top-right corner
+3. Select **API Configuration**
+4. Enter your API keys (get free keys from links provided)
+5. Tap **Test APIs** to verify connections
+6. Save and enjoy enhanced protection!
+
+### API Providers
+
+| Provider | Service | Free Tier | Setup Time |
+|----------|---------|-----------|------------|
+| AbuseIPDB | IP Reputation | 1k requests/day | 2 minutes |
+| Google | Safe Browsing | 10k requests/day | 5 minutes |
+| FraudScore | Phone Validation | 5k requests/month | 2 minutes |
+
+### Without APIs
+- ✅ Full fraud protection using local analysis
+- ✅ Pattern-based spam detection
+- ✅ Number reputation scoring
+- ✅ SMS content analysis
+- ✅ Demo modes for testing
+- ❌ Global threat intelligence
+- ❌ Real-time cloud updates
 
 ---
 
