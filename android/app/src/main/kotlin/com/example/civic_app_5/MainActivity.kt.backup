@@ -1,0 +1,105 @@
+package com.example.civic_app_5
+
+import android.content.Context
+import android.telephony.TelephonyManager
+import android.telephony.SubscriptionManager
+import android.os.Build
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity: FlutterActivity() {
+    private val CHANNEL = "civic_app_5/telephony"
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getTelephonyInfo" -> {
+                    val telephonyInfo = getTelephonyInfo()
+                    result.success(telephonyInfo)
+                }
+                "getNetworkOperator" -> {
+                    val networkOperator = getNetworkOperator()
+                    result.success(networkOperator)
+                }
+                "getSimOperator" -> {
+                    val simOperator = getSimOperator()
+                    result.success(simOperator)
+                }
+                "isDeviceRooted" -> {
+                    val isRooted = isDeviceRooted()
+                    result.success(isRooted)
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+    }
+
+    private fun getTelephonyInfo(): Map<String, Any?> {
+        val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        
+        return try {
+            mapOf(
+                "networkOperator" to telephonyManager.networkOperator,
+                "networkOperatorName" to telephonyManager.networkOperatorName,
+                "networkCountryIso" to telephonyManager.networkCountryIso,
+                "simOperator" to telephonyManager.simOperator,
+                "simOperatorName" to telephonyManager.simOperatorName,
+                "simCountryIso" to telephonyManager.simCountryIso,
+                "phoneType" to telephonyManager.phoneType,
+                "networkType" to telephonyManager.networkType,
+                "hasIccCard" to telephonyManager.hasIccCard(),
+                "isNetworkRoaming" to telephonyManager.isNetworkRoaming
+            )
+        } catch (e: SecurityException) {
+            mapOf("error" to "Permission denied: ${e.message}")
+        } catch (e: Exception) {
+            mapOf("error" to "Failed to get telephony info: ${e.message}")
+        }
+    }
+
+    private fun getNetworkOperator(): String? {
+        return try {
+            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+            telephonyManager.networkOperatorName
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun getSimOperator(): String? {
+        return try {
+            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+            telephonyManager.simOperatorName
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun isDeviceRooted(): Boolean {
+        return try {
+            // Check for common root indicators
+            val rootIndicators = listOf(
+                "/system/app/Superuser.apk",
+                "/sbin/su",
+                "/system/bin/su",
+                "/system/xbin/su",
+                "/data/local/xbin/su",
+                "/data/local/bin/su",
+                "/system/sd/xbin/su",
+                "/system/bin/failsafe/su",
+                "/data/local/su"
+            )
+            
+            rootIndicators.any { path ->
+                java.io.File(path).exists()
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+}
