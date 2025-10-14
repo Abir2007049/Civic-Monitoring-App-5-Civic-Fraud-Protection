@@ -43,9 +43,75 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
     }
   }
 
+  bool _isValidUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      
+      // Check if it has a valid scheme
+      if (uri.scheme.isEmpty) {
+        // Try adding https:// if no scheme provided
+        final withScheme = 'https://$url';
+        final newUri = Uri.parse(withScheme);
+        return newUri.hasScheme && newUri.host.isNotEmpty && newUri.host.contains('.');
+      }
+      
+      // Valid schemes for URLs
+      final validSchemes = ['http', 'https', 'ftp'];
+      if (!validSchemes.contains(uri.scheme.toLowerCase())) {
+        return false;
+      }
+      
+      // Must have a host and it should contain a dot (domain)
+      if (uri.host.isEmpty || !uri.host.contains('.')) {
+        return false;
+      }
+      
+      // Basic domain validation
+      final domainRegex = RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$');
+      final hostParts = uri.host.split('.');
+      if (hostParts.length < 2) return false;
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String _normalizeUrl(String url) {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return 'https://$url';
+    }
+    return url;
+  }
+
   Future<void> _checkUrl() async {
-    final url = _urlController.text.trim();
-    if (url.isEmpty) return;
+    final inputUrl = _urlController.text.trim();
+    if (inputUrl.isEmpty) return;
+
+    // Validate URL first
+    if (!_isValidUrl(inputUrl)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('❌ Invalid URL Format', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text('Please enter a valid URL like:'),
+              Text('• https://example.com'),
+              Text('• google.com'),
+              Text('• malicious-site.net/page'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    final url = _normalizeUrl(inputUrl);
 
     setState(() {
       _checkingUrl = true;
@@ -176,7 +242,6 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('API Configuration', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _apiKeyController,
@@ -240,14 +305,59 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('URL Intelligence', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('✅ Valid URL formats:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('• https://example.com', style: TextStyle(fontSize: 11)),
+                          Text('• google.com (auto-adds https://)', style: TextStyle(fontSize: 11)),
+                          Text('• suspicious-site.net/phishing', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _urlController,
                       decoration: const InputDecoration(
-                        labelText: 'URL',
+                        labelText: 'URL to check',
+                        hintText: 'Enter URL (e.g., google.com or https://example.com)',
                         border: OutlineInputBorder(),
+                        helperText: 'Supports http://, https://, and domain names',
                       ),
                       keyboardType: TextInputType.url,
+                    ),
+                    const SizedBox(height: 8),
+                    // Quick test buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _urlController.text = 'google.com';
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                            child: const Text('Test Safe', style: TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _urlController.text = 'malware-test.com';
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                            child: const Text('Test Unknown', style: TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(

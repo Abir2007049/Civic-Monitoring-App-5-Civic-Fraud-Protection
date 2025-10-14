@@ -19,6 +19,7 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
   bool _smsProtection = true;
   bool _urlProtection = true;
   bool _realTimeScanning = false;
+  bool _apiConnected = false;
   
   int _threatsBlocked = 0;
   int _callsAnalyzed = 0;
@@ -48,6 +49,14 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Check if APIs are configured
+    final abuseIpDbKey = prefs.getString('abuseipdb_api_key') ?? '';
+    final safeBrowsingKey = prefs.getString('safe_browsing_api_key') ?? '';
+    setState(() {
+      _apiConnected = (abuseIpDbKey.isNotEmpty && abuseIpDbKey.length > 20) || 
+                     (safeBrowsingKey.isNotEmpty && safeBrowsingKey.length > 20);
+    });
     setState(() {
       _protectionEnabled = prefs.getBool('protection_enabled') ?? true;
       _callProtection = prefs.getBool('call_protection') ?? true;
@@ -185,222 +194,231 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Main Protection Status
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimatedBuilder(
-                      animation: _pulseAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _protectionEnabled ? _pulseAnimation.value : 1.0,
-                          child: Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              color: _getProtectionColor(),
-                              shape: BoxShape.circle,
+                    // Main Protection Status
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            AnimatedBuilder(
+                              animation: _pulseAnimation,
+                              builder: (context, child) {
+                                return Transform.scale(
+                                  scale: _protectionEnabled ? _pulseAnimation.value : 1.0,
+                                  child: Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      color: _getProtectionColor(),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      _protectionEnabled ? Icons.shield : Icons.shield_outlined,
+                                      size: 50,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                            child: Icon(
-                              _protectionEnabled ? Icons.shield : Icons.shield_outlined,
-                              size: 50,
-                              color: Colors.white,
+                            const SizedBox(height: 16),
+                            Text(
+                              _protectionEnabled ? 'Protection Active' : 'Protection Disabled',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
-                          ),
-                        );
-                      },
+                            Text(
+                              _protectionEnabled ? 'Your device is protected from fraud' : 'Tap to enable protection',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() => _protectionEnabled = !_protectionEnabled);
+                                _saveSettings();
+                              },
+                              icon: Icon(_protectionEnabled ? Icons.pause : Icons.play_arrow),
+                              label: Text(_protectionEnabled ? 'Disable Protection' : 'Enable Protection'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _protectionEnabled ? Colors.red : Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
+
                     const SizedBox(height: 16),
-                    Text(
-                      _protectionEnabled ? 'Protection Active' : 'Protection Disabled',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+
+                    // Statistics
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Protection Statistics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatColumn('Threats\nBlocked', _threatsBlocked, Colors.red),
+                                _buildStatColumn('Calls\nAnalyzed', _callsAnalyzed, Colors.blue),
+                                _buildStatColumn('Messages\nScanned', _messagesScanned, Colors.orange),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    Text(
-                      _protectionEnabled ? 'Your device is protected from fraud' : 'Tap to enable protection',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
+
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() => _protectionEnabled = !_protectionEnabled);
+
+                    // Protection Modules
+                    const Text('Protection Modules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    _buildProtectionToggle(
+                      'Call Protection',
+                      'Block spam and robocalls automatically',
+                      _callProtection,
+                      (value) {
+                        setState(() => _callProtection = value);
                         _saveSettings();
                       },
-                      icon: Icon(_protectionEnabled ? Icons.pause : Icons.play_arrow),
-                      label: Text(_protectionEnabled ? 'Disable Protection' : 'Enable Protection'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _protectionEnabled ? Colors.red : Colors.green,
-                      ),
+                      Icons.phone,
                     ),
-                  ],
-                ),
-              ),
-            ),
+                    _buildProtectionToggle(
+                      'SMS Protection',
+                      'Scan messages for phishing and spam',
+                      _smsProtection,
+                      (value) {
+                        setState(() => _smsProtection = value);
+                        _saveSettings();
+                      },
+                      Icons.message,
+                    ),
+                    _buildProtectionToggle(
+                      'URL Protection',
+                      'Check links for malicious content',
+                      _urlProtection,
+                      (value) {
+                        setState(() => _urlProtection = value);
+                        _saveSettings();
+                      },
+                      Icons.link,
+                    ),
 
-            const SizedBox(height: 16),
-
-            // Statistics
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Protection Statistics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatColumn('Threats\nBlocked', _threatsBlocked, Colors.red),
-                        _buildStatColumn('Calls\nAnalyzed', _callsAnalyzed, Colors.blue),
-                        _buildStatColumn('Messages\nScanned', _messagesScanned, Colors.orange),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
-
-            // Protection Modules
-            const Text('Protection Modules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            
-            _buildProtectionToggle(
-              'Call Protection',
-              'Block spam and robocalls automatically',
-              _callProtection,
-              (value) {
-                setState(() => _callProtection = value);
-                _saveSettings();
-              },
-              Icons.phone,
-            ),
-            
-            _buildProtectionToggle(
-              'SMS Protection',
-              'Scan messages for phishing and spam',
-              _smsProtection,
-              (value) {
-                setState(() => _smsProtection = value);
-                _saveSettings();
-              },
-              Icons.message,
-            ),
-            
-            _buildProtectionToggle(
-              'URL Protection',
-              'Check links for malicious content',
-              _urlProtection,
-              (value) {
-                setState(() => _urlProtection = value);
-                _saveSettings();
-              },
-              Icons.link,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Real-Time Activity
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Real-Time Activity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        Switch(
-                          value: _realTimeScanning,
-                          onChanged: (value) => setState(() => _realTimeScanning = value),
+                    // Real-Time Activity
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Real-Time Activity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                Switch(
+                                  value: _realTimeScanning,
+                                  onChanged: (value) => setState(() => _realTimeScanning = value),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (_recentActivity.isEmpty && !_realTimeScanning)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(32),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.timeline, size: 48, color: Colors.grey),
+                                      SizedBox(height: 8),
+                                      Text('No recent activity'),
+                                      Text('Protection running in background'),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              Column(
+                                children: _recentActivity.take(8).map((activity) {
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Icon(
+                                      _getActivityIcon(activity['type'] as String),
+                                      color: _getActivityColor(activity),
+                                      size: 20,
+                                    ),
+                                    title: Text(
+                                      activity['message'] as String,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                    trailing: Text(
+                                      '${DateTime.parse(activity['timestamp'] as String).hour}:${DateTime.parse(activity['timestamp'] as String).minute.toString().padLeft(2, '0')}',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (_recentActivity.isEmpty && !_realTimeScanning)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Column(
-                            children: [
-                              Icon(Icons.timeline, size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text('No recent activity'),
-                              Text('Protection running in background'),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      Column(
-                        children: _recentActivity.take(8).map((activity) {
-                          return ListTile(
-                            dense: true,
-                            leading: Icon(
-                              _getActivityIcon(activity['type'] as String),
-                              color: _getActivityColor(activity),
-                              size: 20,
-                            ),
-                            title: Text(
-                              activity['message'] as String,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                            trailing: Text(
-                              '${DateTime.parse(activity['timestamp'] as String).hour}:${DateTime.parse(activity['timestamp'] as String).minute.toString().padLeft(2, '0')}',
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                          );
-                        }).toList(),
                       ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Quick Actions
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Quick Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _runProtectionTest(),
-                            icon: const Icon(Icons.play_arrow),
-                            label: const Text('Test Protection'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showDetailedStats(),
-                            icon: const Icon(Icons.analytics),
-                            label: const Text('View Reports'),
-                          ),
-                        ),
-                      ],
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // Quick Actions
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Quick Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _runProtectionTest(),
+                                    icon: const Icon(Icons.play_arrow),
+                                    label: const Text('Test Protection'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _resetStats(),
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Reset Stats'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

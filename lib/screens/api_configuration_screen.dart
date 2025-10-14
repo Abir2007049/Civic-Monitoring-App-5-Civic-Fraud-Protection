@@ -22,7 +22,20 @@ class _ApiConfigurationScreenState extends State<ApiConfigurationScreen> {
   @override
   void initState() {
     super.initState();
-    _loadApiKeys();
+    _initializeApiKeys();
+  }
+
+  Future<void> _initializeApiKeys() async {
+    final prefs = await SharedPreferences.getInstance();
+    const abuseIpDbKey = 'fcc412fd4a163f6aabcfac69c7effd10e52661bbd664f80ab6aa42afb0a43408b92e43063353faf0';
+    const safeBrowsingKey = 'AIzaSyDgpvZS-kiGosMFoWPvBuMcFSGDF7u2c_w';
+    
+    // Force save the API keys on every app start to ensure they're available
+    await prefs.setString('abuseipdb_api_key', abuseIpDbKey);
+    await prefs.setString('safe_browsing_api_key', safeBrowsingKey);
+    
+    // Load the UI with the keys
+    await _loadApiKeys();
   }
 
   @override
@@ -36,8 +49,8 @@ class _ApiConfigurationScreenState extends State<ApiConfigurationScreen> {
   Future<void> _loadApiKeys() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _abuseIpDbController.text = prefs.getString('abuseipdb_api_key') ?? '';
-      _safeBrowsingController.text = prefs.getString('safe_browsing_api_key') ?? '';
+      _abuseIpDbController.text = prefs.getString('abuseipdb_api_key') ?? 'fcc412fd4a163f6aabcfac69c7effd10e52661bbd664f80ab6aa42afb0a43408b92e43063353faf0';
+      _safeBrowsingController.text = prefs.getString('safe_browsing_api_key') ?? 'AIzaSyDgpvZS-kiGosMFoWPvBuMcFSGDF7u2c_w';
       _fraudScoreController.text = prefs.getString('fraudscore_api_key') ?? '';
     });
   }
@@ -255,7 +268,9 @@ class _ApiConfigurationScreenState extends State<ApiConfigurationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom; // keyboard height
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('API Configuration'),
         actions: [
@@ -266,14 +281,19 @@ class _ApiConfigurationScreenState extends State<ApiConfigurationScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + (viewInsets > 0 ? viewInsets : 16)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - (viewInsets > 0 ? viewInsets : 0)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -296,82 +316,164 @@ class _ApiConfigurationScreenState extends State<ApiConfigurationScreen> {
               ),
             ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             
             // API Key Input Fields
-            _buildApiKeyField(
+              _buildApiKeyField(
               'AbuseIPDB API Key',
               'IP reputation and abuse reports',
               _abuseIpDbController,
               Icons.security,
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             
-            _buildApiKeyField(
+              _buildApiKeyField(
               'Google Safe Browsing API Key',
               'URL safety and malware detection',
               _safeBrowsingController,
               Icons.link,
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             
-            _buildApiKeyField(
-              'FraudScore API Key',
+              _buildApiKeyField(
+              'FraudScore API Key (Optional)',
               'Phone number validation and fraud scoring',
               _fraudScoreController,
               Icons.phone,
             ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             
             // Visibility Toggle
-            Row(
-              children: [
-                Checkbox(
-                  value: !_obscureKeys,
-                  onChanged: (value) => setState(() => _obscureKeys = !value!),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: !_obscureKeys,
+                      onChanged: (value) => setState(() => _obscureKeys = !value!),
+                    ),
+                    const Text('Show API keys'),
+                    const Spacer(),
+                    Icon(
+                      _obscureKeys ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                  ],
                 ),
-                const Text('Show API keys'),
-              ],
+              ),
             ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
             
             // Action Buttons
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: ElevatedButton(
+                SizedBox(
+                  width: double.infinity,
+                    height: 42,
+                  child: ElevatedButton.icon(
                     onPressed: _saveApiKeys,
-                    child: const Text('Save Keys'),
+                    icon: const Icon(Icons.save),
+                    label: const Text('💾 Save API Keys'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                    height: 42,
+                  child: ElevatedButton.icon(
                     onPressed: _testingApis ? null : _testApiConnections,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: _testingApis 
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 16, 
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Testing...'),
-                          ],
+                    icon: _testingApis 
+                      ? const SizedBox(
+                          width: 16, 
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Test APIs'),
+                      : const Icon(Icons.network_check),
+                    label: Text(_testingApis ? 'Testing APIs...' : '🧪 Test API Connections'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],
             ),
-          ],
+            
+            const SizedBox(height: 12),
+            
+            // Current Status Card
+            Card(
+              color: Colors.green.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.green, size: 20),
+                        SizedBox(width: 8),
+                        Text('✅ API Status', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          _abuseIpDbController.text.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: _abuseIpDbController.text.isNotEmpty ? Colors.green : Colors.grey,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('AbuseIPDB API'),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          _safeBrowsingController.text.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: _safeBrowsingController.text.isNotEmpty ? Colors.green : Colors.grey,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Google Safe Browsing API'),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          _fraudScoreController.text.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: _fraudScoreController.text.isNotEmpty ? Colors.green : Colors.grey,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('FraudScore API (Optional)'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -380,29 +482,39 @@ class _ApiConfigurationScreenState extends State<ApiConfigurationScreen> {
   Widget _buildApiKeyField(String title, String subtitle, TextEditingController controller, IconData icon) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, size: 20, color: Colors.blue),
+                Icon(icon, size: 18, color: Colors.blue),
                 const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    title, 
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+                if (controller.text.isNotEmpty)
+                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 2),
+            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
             const SizedBox(height: 8),
             TextField(
               controller: controller,
               obscureText: _obscureKeys,
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Enter your ${title.toLowerCase()}',
+                hintText: 'Paste your ${title.split(' ').first.toLowerCase()} key here...',
+                hintStyle: const TextStyle(fontSize: 12),
                 border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 suffixIcon: controller.text.isNotEmpty 
-                  ? const Icon(Icons.check, color: Colors.green)
-                  : const Icon(Icons.key, color: Colors.grey),
+                  ? const Icon(Icons.check, color: Colors.green, size: 20)
+                  : const Icon(Icons.key, color: Colors.grey, size: 18),
               ),
               onChanged: (value) => setState(() {}),
             ),

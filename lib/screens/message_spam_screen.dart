@@ -254,7 +254,20 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Message Spam Detection'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Text(
+              'Fraud Detection',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+            Text(
+              'Message Spam',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -274,132 +287,195 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Settings Card
-          Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Protection Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SwitchListTile(
-                    title: const Text('Auto-scan messages'),
-                    subtitle: const Text('Automatically analyze incoming messages'),
-                    value: _autoScanEnabled,
-                    onChanged: (value) {
-                      setState(() => _autoScanEnabled = value);
-                      _saveSettings();
-                    },
-                  ),
-                  SwitchListTile(
-                    title: const Text('Auto-block high-risk senders'),
-                    subtitle: const Text('Automatically block senders with ≥70% risk'),
-                    value: _blockHighRisk,
-                    onChanged: (value) {
-                      setState(() => _blockHighRisk = value);
-                      _saveSettings();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Manual Analysis
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Manual Message Analysis', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _messageController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Paste message content',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: _analyzing ? null : _analyzeMessage,
-                    icon: _analyzing
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.analytics),
-                    label: Text(_analyzing ? 'Analyzing...' : 'Analyze Message'),
-                  ),
-                  if (_lastResult != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _getRiskColor(_lastResult!.level.name).withOpacity(0.1),
-                        border: Border.all(color: _getRiskColor(_lastResult!.level.name)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                  // Settings Card
+                  Card(
+                    margin: const EdgeInsets.all(16),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Risk: ${_lastResult!.riskScore}/100 (${_lastResult!.level.name})'),
-                          if (_lastResult!.reasons.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Wrap(
-                              spacing: 6,
-                              children: _lastResult!.reasons.map((r) => Chip(label: Text(r))).toList(),
+                          Row(
+                            children: [
+                              Icon(Icons.settings, color: Theme.of(context).primaryColor),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Protection Settings',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Auto-scan messages'),
+                            subtitle: const Text('Automatically analyze incoming messages', style: TextStyle(fontSize: 12)),
+                            value: _autoScanEnabled,
+                            onChanged: (value) {
+                              setState(() => _autoScanEnabled = value);
+                              _saveSettings();
+                            },
+                          ),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Auto-block high-risk senders'),
+                            subtitle: const Text('Automatically block senders with ≥70% risk', style: TextStyle(fontSize: 12)),
+                            value: _blockHighRisk,
+                            onChanged: (value) {
+                              setState(() => _blockHighRisk = value);
+                              _saveSettings();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Manual Analysis
+                  Card(
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.analytics, color: Theme.of(context).primaryColor),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Manual Message Analysis',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _messageController,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Paste message content',
+                              hintText: 'Enter or paste SMS content here...',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.all(12),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _analyzing ? null : _analyzeMessage,
+                              icon: _analyzing
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.analytics),
+                              label: Text(_analyzing ? 'Analyzing...' : 'Analyze Message'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                          if (_lastResult != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _getRiskColor(_lastResult!.level.name).withOpacity(0.1),
+                                border: Border.all(color: _getRiskColor(_lastResult!.level.name), width: 2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        _lastResult!.level.name == 'high' ? Icons.error : 
+                                        _lastResult!.level.name == 'medium' ? Icons.warning : Icons.info,
+                                        color: _getRiskColor(_lastResult!.level.name),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Risk: ${_lastResult!.riskScore}/100 (${_lastResult!.level.name.toUpperCase()})',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: _getRiskColor(_lastResult!.level.name),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (_lastResult!.reasons.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: _lastResult!.reasons.map((r) => Chip(
+                                        label: Text(r, style: const TextStyle(fontSize: 11)),
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      )).toList(),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ],
                         ],
                       ),
                     ),
-                  ],
+                  ),
+
+                  // Recent Messages Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.history, color: Theme.of(context).primaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Recent Messages (${_recentMessages.length})',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Recent Messages
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Recent Messages (${_recentMessages.length})',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            
+            // Recent Messages List
+            _recentMessages.isEmpty
+                ? const SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.message_outlined, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text('No messages analyzed yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                          SizedBox(height: 4),
+                          Text('Use manual analysis or run demo', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  )
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildMessageTile(_recentMessages[index]),
+                        childCount: _recentMessages.length,
+                      ),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _recentMessages.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.message_outlined, size: 64, color: Colors.grey),
-                              SizedBox(height: 16),
-                              Text('No messages analyzed yet'),
-                              Text('Use manual analysis or run demo'),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _recentMessages.length,
-                          itemBuilder: (context, index) => _buildMessageTile(_recentMessages[index]),
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

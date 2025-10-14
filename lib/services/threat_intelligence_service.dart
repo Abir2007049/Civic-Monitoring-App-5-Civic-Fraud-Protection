@@ -36,10 +36,16 @@ class ThreatIntelligenceService {
     final keys = await _getApiKeys();
     final useApiKey = apiKey ?? keys['abuseipdb'] ?? '';
     
+    // Debug: Show what key is being used
+    print('🔍 AbuseIPDB API Key check: ${useApiKey.isNotEmpty ? "${useApiKey.substring(0, 8)}..." : "EMPTY"}');
+    
     // If no API key available, use enhanced mock response
     if (useApiKey.isEmpty) {
+      print('⚠️ No AbuseIPDB API key found, using mock response');
       return _getMockResponse(number);
     }
+    
+    print('✅ Using real AbuseIPDB API with key: ${useApiKey.substring(0, 8)}...');
 
     try {
       // Try FraudScore API first for phone numbers
@@ -75,14 +81,37 @@ class ThreatIntelligenceService {
   }
 
   Future<Map<String, dynamic>> checkURLWithAPI(String url, {String? apiKey}) async {
+    // Stricter URL validation: require protocol, valid domain, and only allow real/common TLDs
+    final allowedTlds = [
+      'com','org','net','gov','edu','io','co','us','uk','in','info','biz','me','app','dev','ai','ca','au','de','fr','jp','cn','ru','br','za','eu','tv','cc','xyz','site','online','store','tech','pro','club','news','live','digital','agency','solutions','group','media','world','today','company','systems','center','academy','support','cloud','network','consulting','finance','capital','law','health','care','shop','blog','press','space','website','fun','games','video','music','design','art','photo','photos','gallery','studio','works','events','team','partners','ventures','foundation','charity','ngo','int','mil','gov','edu','museum','name','mobi','asia','cat','jobs','tel','travel','xxx','id','my','sg','th','vn','ph','kr','hk','tw','es','it','pl','se','no','fi','dk','be','ch','at','cz','sk','hu','ro','bg','gr','tr','il','sa','ae','ir','pk','bd','lk','np','ua','by','kz','uz','ge','am','az','md','rs','hr','si','ba','me','al','mk','lt','lv','ee','is','lu','mt','cy','mc','sm','li','gi','fo','gl','je','gg','im','ax','bl','mf','pm','re','yt','tf','wf','pf','nc','gp','mq','gf','sr','aw','cw','sx','bq','vg','vi','ai','ms','bm','ky','tc','fk','gs','sh','ac','io','aq','bv','hm','sj','tf','um','wf','yt'
+    ];
+    final tldPattern = allowedTlds.join('|');
+    final strictUrlPattern = RegExp(r'^(https?:\/\/)?([a-zA-Z0-9\-]+\.)+(' + tldPattern + r')(\:[0-9]+)?(\/[^\s]*)?$', caseSensitive: false);
+    if (!strictUrlPattern.hasMatch(url.trim())) {
+      return {
+        'error': 'Invalid URL format',
+        'riskScore': 90,
+        'message': 'Malformed or invalid URL detected',
+        'categories': ['invalid_url', 'malformed'],
+        'source': 'Local Validation',
+        'cached_at': DateTime.now().toIso8601String(),
+      };
+    }
+    
     // Get saved API keys
     final keys = await _getApiKeys();
     final useApiKey = apiKey ?? keys['safe_browsing'] ?? '';
     
-    // If no API key, use mock response
+    // Debug: Show what key is being used
+    print('🔍 Google Safe Browsing API Key check: ${useApiKey.isNotEmpty ? "${useApiKey.substring(0, 8)}..." : "EMPTY"}');
+    
+    // If no API key available, use enhanced mock response
     if (useApiKey.isEmpty) {
+      print('⚠️ No Safe Browsing API key found, using mock response');
       return _getMockURLResponse(url);
     }
+    
+    print('✅ Using real Google Safe Browsing API with key: ${useApiKey.substring(0, 8)}...');
 
     try {
       // Google Safe Browsing API for URL checking
@@ -212,9 +241,15 @@ class ThreatIntelligenceService {
     int riskScore = 0;
     final List<String> categories = [];
 
-    if (uri == null) {
-      riskScore = 80;
-      categories.add('malformed_url');
+    if (uri == null || uri.host.isEmpty) {
+      return {
+        'error': 'Invalid URL format',
+        'riskScore': 95,
+        'message': 'URL validation failed - malformed or empty host',
+        'categories': ['invalid_url', 'malformed'],
+        'source': 'Local Analysis',
+        'cached_at': DateTime.now().toIso8601String(),
+      };
     } else {
       // Check for suspicious domains
       final suspiciousDomains = ['bit.ly', 'tinyurl.com', 'goo.gl', 't.co'];
