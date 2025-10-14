@@ -1,4 +1,4 @@
-# Civic App 5 - Telecom Fraud & Identity Protection
+# Civic App 5 - Telecom Based Fraud & Identity Protection
 
 A comprehensive Flutter application that provides advanced fraud detection and identity protection features for telecommunications.
 
