@@ -32,52 +32,48 @@ class ThreatIntelligenceService {
       }
     }
 
-    // Get API keys if not provided
+    // Detect if input is an IP address
+    final ipPattern = RegExp(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+    final isIp = ipPattern.hasMatch(number);
+
+    // Try FraudScore for phone numbers (if key is set and not an IP)
     final keys = await _getApiKeys();
-    final useApiKey = apiKey ?? keys['abuseipdb'] ?? '';
-    
-    // Debug: Show what key is being used
-    print('🔍 AbuseIPDB API Key check: ${useApiKey.isNotEmpty ? "${useApiKey.substring(0, 8)}..." : "EMPTY"}');
-    
-    // If no API key available, use enhanced mock response
-    if (useApiKey.isEmpty) {
-      print('⚠️ No AbuseIPDB API key found, using mock response');
-      return _getMockResponse(number);
-    }
-    
-    print('✅ Using real AbuseIPDB API with key: ${useApiKey.substring(0, 8)}...');
-
-    try {
-      // Try FraudScore API first for phone numbers
-      if (keys['fraudscore']!.isNotEmpty) {
-        final fraudResult = await checkPhoneWithFraudScore(number, apiKey: keys['fraudscore']!);
-        if (fraudResult['source'] == 'FraudScore') {
-          return fraudResult;
-        }
+    final fraudScoreKey = keys['fraudscore'] ?? '';
+    if (!isIp && fraudScoreKey.isNotEmpty) {
+      final fraudResult = await checkPhoneWithFraudScore(number, apiKey: fraudScoreKey);
+      if (fraudResult['source'] == 'FraudScore') {
+        _cache[number] = fraudResult;
+        return fraudResult;
       }
+    }
 
-      // Fallback to AbuseIPDB for general reputation
-      final response = await http.get(
-        Uri.parse('$_abuseIpDbBase/check'),
-        headers: {
-          'Key': useApiKey,
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+    // Use AbuseIPDB for IP addresses
+    final useApiKey = apiKey ?? keys['abuseipdb'] ?? '';
+    if (isIp && useApiKey.isNotEmpty) {
+      try {
+        final response = await http.get(
+          Uri.parse('$_abuseIpDbBase/check?ipAddress=$number'),
+          headers: {
+            'Key': useApiKey,
+            'Accept': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        data['cached_at'] = DateTime.now().toIso8601String();
-        _cache[number] = data;
-        return data;
-      } else {
-        // For demo purposes, return mock data based on number patterns
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          data['cached_at'] = DateTime.now().toIso8601String();
+          _cache[number] = data;
+          return data;
+        } else {
+          return _getMockResponse(number);
+        }
+      } catch (e) {
         return _getMockResponse(number);
       }
-    } catch (e) {
-      // Fallback to mock response if API fails
-      return _getMockResponse(number);
     }
+
+    // Fallback to mock for all else
+    return _getMockResponse(number);
   }
 
   Future<Map<String, dynamic>> checkURLWithAPI(String url, {String? apiKey}) async {

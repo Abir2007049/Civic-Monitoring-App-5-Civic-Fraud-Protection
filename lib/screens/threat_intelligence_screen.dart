@@ -11,7 +11,6 @@ class ThreatIntelligenceScreen extends StatefulWidget {
 class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
   final _numberController = TextEditingController();
   final _urlController = TextEditingController();
-  final _apiKeyController = TextEditingController();
   final _service = ThreatIntelligenceService();
   
   Map<String, dynamic>? _numberResult;
@@ -29,10 +28,7 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
     });
 
     try {
-      final result = await _service.checkNumberWithAPI(
-        number,
-        apiKey: _apiKeyController.text.trim().isNotEmpty ? _apiKeyController.text.trim() : null,
-      );
+      final result = await _service.checkNumberWithAPI(number);
       setState(() => _numberResult = result);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,10 +115,7 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
     });
 
     try {
-      final result = await _service.checkURLWithAPI(
-        url,
-        apiKey: _apiKeyController.text.trim().isNotEmpty ? _apiKeyController.text.trim() : null,
-      );
+      final result = await _service.checkURLWithAPI(url);
       setState(() => _urlResult = result);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -242,28 +235,7 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // API Key Configuration
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _apiKeyController,
-                      decoration: const InputDecoration(
-                        labelText: 'API Key (optional)',
-                        helperText: 'Leave empty for demo mode',
-                        border: OutlineInputBorder(),
-                      ),
-                      obscureText: true,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
+            // Removed API Key Configuration card
             const SizedBox(height: 12),
 
             // Number Intelligence
@@ -417,7 +389,6 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
   void dispose() {
     _numberController.dispose();
     _urlController.dispose();
-    _apiKeyController.dispose();
     super.dispose();
   }
 }

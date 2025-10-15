@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../services/reputation_service.dart';
 import '../services/sms_analysis_service.dart';
 import '../services/db_service.dart';
+import 'package_recommendation_screen.dart';
 import 'blocklist_screen.dart';
 import 'export_screen.dart';
 import 'threat_intelligence_screen.dart';
@@ -104,6 +105,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   case 'health_risk':
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthRiskScreen()));
                     break;
+                  case 'package_recommendations':
+                    Navigator.pushNamed(context, '/package_recommendations');
+                    break;
                   case 'device_data':
                     Navigator.pushNamed(context, '/device_data');
                     break;
@@ -112,66 +116,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'blocklist',
-                  child: ListTile(
-                    leading: Icon(Icons.shield),
-                    title: Text('Blocklist'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.shield),
+                      SizedBox(width: 12),
+                      Text('Blocklist'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'export',
-                  child: ListTile(
-                    leading: Icon(Icons.import_export),
-                    title: Text('Export/Import'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.import_export),
+                      SizedBox(width: 12),
+                      Text('Export/Import'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'threat_intel',
-                  child: ListTile(
-                    leading: Icon(Icons.security),
-                    title: Text('Threat Intelligence'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.security),
+                      SizedBox(width: 12),
+                      Text('Threat Intelligence'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'package_recommendations',
+                  child: Row(
+                    children: [
+                      Icon(Icons.card_giftcard, color: Colors.purple),
+                      SizedBox(width: 12),
+                      Text('Package Recommendations'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'sms_spam',
-                  child: ListTile(
-                    leading: Icon(Icons.sms),
-                    title: Text('SMS Spam Detection'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.sms),
+                      SizedBox(width: 12),
+                      Text('SMS Spam Detection'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'call_spam',
-                  child: ListTile(
-                    leading: Icon(Icons.phone),
-                    title: Text('Call Spam Protection'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.phone),
+                      SizedBox(width: 12),
+                      Text('Call Spam Protection'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'realtime',
-                  child: ListTile(
-                    leading: Icon(Icons.flash_on),
-                    title: Text('Real-Time Protection'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.flash_on),
+                      SizedBox(width: 12),
+                      Text('Real-Time Protection'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'health_risk',
-                  child: ListTile(
-                    leading: Icon(Icons.health_and_safety, color: Colors.teal),
-                    title: Text('Health Risk Monitor'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.health_and_safety, color: Colors.teal),
+                      SizedBox(width: 12),
+                      Text('Health Risk Monitor'),
+                    ],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'device_data',
-                  child: ListTile(
-                    leading: Icon(Icons.devices),
-                    title: Text('Device Data'),
-                    contentPadding: EdgeInsets.zero,
+                  child: Row(
+                    children: [
+                      Icon(Icons.devices),
+                      SizedBox(width: 12),
+                      Text('Device Data'),
+                    ],
                   ),
                 ),
               ],

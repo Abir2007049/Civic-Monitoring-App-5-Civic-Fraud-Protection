@@ -5,7 +5,9 @@ import 'package:call_log/call_log.dart';
 import 'package:telephony/telephony.dart';
 import 'screens/dashboard.dart';
 import 'screens/device_data_screen.dart';
+
 import 'screens/health_risk_screen.dart';
+import 'screens/package_recommendation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +41,7 @@ class CivicApp extends StatelessWidget {
       routes: {
         '/device_data': (context) => const DeviceDataScreen(),
         '/health_risk': (context) => const HealthRiskScreen(),
+        '/package_recommendations': (context) => const PackageRecommendationScreen(),
       },
     );
   }

@@ -105,68 +105,7 @@ class _HealthRiskScreenState extends State<HealthRiskScreen> {
     }
   }
 
-  Future<void> _runHealthDemo() async {
-    // Create 5 demo messages across categories with mixed inbox/sent
-    final demos = [
-      {
-        'box': 'inbox',
-        'address': '+8801712345678',
-        'body': 'There\'s an outbreak of dengue in our area. Many people have high fever and severe headache. Hospital is full.',
-        'minutesAgo': 2,
-      },
-      {
-        'box': 'inbox',
-        'address': 'Water Board',
-        'body': 'Water contamination alert: several cases of diarrhea and vomiting after drinking tap water. Boil water before use.',
-        'minutesAgo': 10,
-      },
-      {
-        'box': 'sent',
-        'address': '+8801999888777',
-        'body': 'Gas leak near the old factory causing breathing problems and chest pain. Stay indoors and avoid the area.',
-        'minutesAgo': 18,
-      },
-      {
-        'box': 'inbox',
-        'address': '+8801555666777',
-        'body': 'Severe accident reported: multiple people injured and bleeding heavily, ambulance delay expected.',
-        'minutesAgo': 25,
-      },
-      {
-        'box': 'sent',
-        'address': 'School Admin',
-        'body': 'School closed due to mass illness; many students have cough and mild fever. Monitor symptoms at home.',
-        'minutesAgo': 35,
-      },
-    ];
-
-    final List<Map<String, dynamic>> results = [];
-    for (final d in demos) {
-      final text = d['body'] as String;
-      final analysis = await _healthService.analyzeText(text);
-      final ts = DateTime.now().subtract(Duration(minutes: d['minutesAgo'] as int)).toIso8601String();
-      results.add({
-        'box': d['box'],
-        'address': d['address'],
-        'body': text,
-        'timestamp': ts,
-        'risk': analysis.riskLevel.name,
-        'summary': analysis.message,
-      });
-    }
-
-    results.sort((a, b) => (b['timestamp'] as String).compareTo(a['timestamp'] as String));
-    setState(() {
-      _scannedMessages
-        ..clear()
-        ..addAll(results);
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Loaded 5 demo health messages')),
-      );
-    }
-  }
+  // Demo message generator removed per request
 
   Future<void> _analyzeText() async {
     if (_textController.text.trim().isEmpty) {
@@ -386,12 +325,7 @@ class _HealthRiskScreenState extends State<HealthRiskScreen> {
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              ElevatedButton.icon(
-                                onPressed: _runHealthDemo,
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('Run Demo'),
-                              ),
+                              // Demo button removed
                             ],
                           ),
                         ],
