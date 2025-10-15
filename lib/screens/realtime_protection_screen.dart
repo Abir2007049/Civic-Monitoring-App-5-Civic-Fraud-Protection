@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/db_service.dart';
@@ -13,6 +14,7 @@ class RealTimeProtectionScreen extends StatefulWidget {
 class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  StreamSubscription<int>? _realTimeSubscription;
   
   bool _protectionEnabled = true;
   bool _callProtection = true;
@@ -91,8 +93,10 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
 
   void _startRealTimeSimulation() {
     // Simulate periodic background activity
-    Stream.periodic(const Duration(seconds: 5), (i) => i).listen((_) {
-      if (_protectionEnabled && mounted) {
+    _realTimeSubscription?.cancel();
+    _realTimeSubscription = Stream.periodic(const Duration(seconds: 5), (i) => i).listen((_) {
+      if (!mounted) return;
+      if (_protectionEnabled) {
         _simulateBackgroundActivity();
       }
     });
@@ -448,6 +452,7 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
   }
 
   Future<void> _runProtectionTest() async {
+    if (!mounted) return;
     setState(() => _realTimeScanning = true);
     final testActivities = [
       {'type': 'call_scan', 'message': 'Testing call protection...', 'threat': false},
@@ -459,6 +464,7 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
     ];
     for (final activity in testActivities) {
       await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
       setState(() {
         _recentActivity.insert(0, {
           ...activity,
@@ -473,6 +479,7 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
       });
       await _saveStats();
     }
+    if (!mounted) return;
     setState(() => _realTimeScanning = false);
   }
 
@@ -484,5 +491,12 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
       _recentActivity.clear();
     });
     _saveStats();
+  }
+
+  @override
+  void dispose() {
+    _realTimeSubscription?.cancel();
+    _pulseController.dispose();
+    super.dispose();
   }
 }

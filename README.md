@@ -17,6 +17,16 @@ A comprehensive Flutter application that provides advanced fraud detection and i
 - **Keyword Filtering**: Custom keyword-based filtering with user-defined patterns
 - **Real-time SMS Monitoring**: Background monitoring of incoming messages
 
+### 🏥 Health Risk Monitoring (NEW!)
+- **Disease Outbreak Detection**: Identifies mentions of epidemics, pandemics, and contagious diseases
+- **Contamination Alerts**: Detects food and water safety concerns
+- **Medical Emergency Recognition**: Flags healthcare system strain and medicine shortages
+- **Symptom Cluster Analysis**: Identifies patterns of mass illness in communities
+- **Automatic SMS Scanning**: Real-time health risk detection in messages
+- **Smart Recommendations**: Context-aware safety and action recommendations
+- **Community Health Safety**: Early warning system for local health threats
+- **100% Local Processing**: Privacy-first design with no cloud uploads
+
 ### 🔍 Advanced Fraud Detection
 - **Multi-source Intelligence**: Integration with AbuseIPDB and FraudScore APIs
 - **Device Metadata Analysis**: Collects and analyzes device characteristics for security assessment

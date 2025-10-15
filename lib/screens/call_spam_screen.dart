@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:call_log/call_log.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/reputation_service.dart';
 import '../services/db_service.dart';
+import '../services/notification_service.dart';
 import '../models/models.dart';
 
 class CallSpamScreen extends StatefulWidget {
@@ -33,6 +35,7 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
     _loadRecentCalls();
     _loadStats();
     _requestPermissionsAndLoadDeviceCalls();
+    NotificationService().init(context);
   }
 
   Future<void> _requestPermissionsAndLoadDeviceCalls() async {
@@ -54,6 +57,15 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
         
         // Check reputation
         final result = await _repService.checkNumber(number);
+
+        // If number is blocked in app, show notification
+        final blockedNumbers = await AppDatabase.instance.getBlocked();
+        if (blockedNumbers.any((b) => b['number'] == number)) {
+          await NotificationService().showNotification(
+            title: 'Blocked Number Detected',
+            body: 'Blocked number $number tried to call you.',
+          );
+        }
         
         final callData = {
           'id': entry.timestamp.toString(),
@@ -139,6 +151,30 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
   Future<void> _saveStats() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('spam_calls_blocked', _spamCallsBlocked);
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    // Remove any non-digit characters except + from phone number
+    final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    final Uri phoneUri = Uri(scheme: 'tel', path: cleanedNumber);
+    
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unable to make phone call')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error making call: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _analyzeNumber() async {
@@ -339,6 +375,19 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
+          if ((call['risk_score'] as int? ?? 0) < 70)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.phone),
+              onPressed: () {
+                Navigator.pop(context);
+                _makePhoneCall(call['number'] as String);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              label: const Text('Call'),
+            ),
           if (!(call['blocked'] as bool? ?? false))
             ElevatedButton(
               onPressed: () async {
@@ -347,9 +396,11 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
                   reason: 'Manually blocked from call log',
                 );
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Blocked ${call['number']}')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Blocked ${call['number']}')),
+                  );
+                }
               },
               child: const Text('Block Number'),
             ),

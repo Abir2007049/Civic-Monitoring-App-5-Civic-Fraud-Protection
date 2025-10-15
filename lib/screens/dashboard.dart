@@ -9,6 +9,7 @@ import 'threat_intelligence_screen.dart';
 import 'message_spam_screen.dart';
 import 'call_spam_screen.dart';
 import 'realtime_protection_screen.dart';
+import 'health_risk_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -100,6 +101,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   case 'realtime':
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const RealTimeProtectionScreen()));
                     break;
+                  case 'health_risk':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthRiskScreen()));
+                    break;
                   case 'device_data':
                     Navigator.pushNamed(context, '/device_data');
                     break;
@@ -151,6 +155,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ListTile(
                     leading: Icon(Icons.flash_on),
                     title: Text('Real-Time Protection'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'health_risk',
+                  child: ListTile(
+                    leading: Icon(Icons.health_and_safety, color: Colors.teal),
+                    title: Text('Health Risk Monitor'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -309,6 +321,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ]
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Health Risk Monitor Quick Access Card
+              Card(
+                elevation: 2,
+                color: Colors.teal.shade50,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthRiskScreen()));
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.teal,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.health_and_safety,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Health Risk Monitor',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Detect health risks in messages and alerts',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '🏥 Disease outbreaks • 💧 Contamination • ⚠️ Medical emergencies',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios, color: Colors.teal),
+                      ],
+                    ),
                   ),
                 ),
               ),

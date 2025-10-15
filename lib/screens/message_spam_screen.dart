@@ -6,6 +6,7 @@ import 'package:telephony/telephony.dart';
 import '../services/sms_analysis_service.dart';
 import '../services/reputation_service.dart';
 import '../services/db_service.dart';
+import '../services/notification_service.dart';
 import '../models/models.dart';
 
 class MessageSpamScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
   bool _blockHighRisk = false;
   bool _analyzing = false;
   
+  
   SMSAnalysisResult? _lastResult;
 
   @override
@@ -33,6 +35,7 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
     _loadSettings();
     _loadRecentMessages();
     _requestPermissionsAndLoadDeviceSMS();
+    NotificationService().init(context);
   }
 
   Future<void> _requestPermissionsAndLoadDeviceSMS() async {
@@ -45,25 +48,29 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
   Future<void> _loadDeviceSMS() async {
     try {
       final Telephony telephony = Telephony.instance;
-      final List<SmsMessage> messages = await telephony.getInboxSms(
+      final List<SmsMessage> inbox = await telephony.getInboxSms(
         columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
       );
-      
       final List<Map<String, dynamic>> deviceMessages = [];
       
-      for (final sms in messages.take(50)) {
-        // Skip messages with null or empty body
+      for (final sms in inbox.take(50)) {
         if (sms.body == null || sms.body!.isEmpty) continue;
-        
-        // Skip messages with null date
         if (sms.date == null) continue;
-        
+
         try {
-          // Analyze the message
           final analysis = await _smsService.analyze(sms.body!);
           final senderAddress = sms.address ?? 'Unknown';
           final senderCheck = await _repService.checkNumber(senderAddress);
-          
+
+          // If sender is blocked in app, show notification
+          final blockedNumbers = await AppDatabase.instance.getBlocked();
+          if (blockedNumbers.any((b) => b['number'] == senderAddress)) {
+            await NotificationService().showNotification(
+              title: 'Blocked Number Detected',
+              body: 'Blocked number $senderAddress tried to message you.',
+            );
+          }
+
           final messageData = {
             'id': sms.date.toString(),
             'sender': senderAddress,
@@ -77,7 +84,7 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
             'timestamp': DateTime.fromMillisecondsSinceEpoch(sms.date!).toIso8601String(),
             'blocked': analysis.riskScore >= 70 || senderCheck.riskScore >= 70,
           };
-          
+
           deviceMessages.add(messageData);
         } catch (e) {
           print('Error analyzing SMS from ${sms.address}: $e');
@@ -432,6 +439,7 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
                               _saveSettings();
                             },
                           ),
+                          
                         ],
                       ),
                     ),

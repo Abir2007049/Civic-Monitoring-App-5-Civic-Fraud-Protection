@@ -49,6 +49,7 @@ dependencies:
   flutter_contacts: ^1.1.9       # Access contacts (modern alternative)
   call_log: ^4.0.0               # Access call logs (Android)
   telephony: ^0.2.0              # Access SMS (Android)
+  flutter_local_notifications: ^17.0.0  # Local notifications
 
 dev_dependencies:
   flutter_test:

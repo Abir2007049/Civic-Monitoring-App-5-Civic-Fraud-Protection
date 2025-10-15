@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/db_service.dart';
+import '../services/notification_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BlocklistScreen extends StatefulWidget {
   const BlocklistScreen({super.key});
@@ -13,6 +15,12 @@ class _BlocklistScreenState extends State<BlocklistScreen> {
   final _reasonController = TextEditingController();
   List<Map<String, dynamic>> _blockedNumbers = [];
   bool _loading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    NotificationService().init(context);
+  }
 
   @override
   void initState() {
@@ -51,6 +59,11 @@ class _BlocklistScreenState extends State<BlocklistScreen> {
       await AppDatabase.instance.addBlocked(
         number, 
         reason: _reasonController.text.trim().isNotEmpty ? _reasonController.text.trim() : null,
+      );
+      // Show notification for block
+      await NotificationService().showNotification(
+        title: 'Number Blocked (App Only)',
+        body: 'Blocked $number in Civic App.\nTo block at system level, tap the settings button.',
       );
       
       _numberController.clear();
@@ -148,6 +161,22 @@ class _BlocklistScreenState extends State<BlocklistScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Open System Blocklist Settings',
+            icon: const Icon(Icons.settings),
+            onPressed: () async {
+              // Open system call blocking settings (best effort)
+              const url = 'package:com.android.contacts';
+              // Try to open the system's call blocking settings
+              final intentUri = Uri.parse('content://com.android.contacts/blocked');
+              if (await canLaunchUrl(intentUri)) {
+                await launchUrl(intentUri);
+              } else {
+                // Fallback: open phone app settings
+                await launchUrl(Uri.parse('package:com.android.phone'));
+              }
+            },
+          ),
+          IconButton(
             onPressed: _showAddDialog,
             icon: const Icon(Icons.add),
           ),
@@ -165,6 +194,12 @@ class _BlocklistScreenState extends State<BlocklistScreen> {
                       Text('No blocked numbers yet'),
                       SizedBox(height: 8),
                       Text('Tap + to add a number to blocklist'),
+                      SizedBox(height: 8),
+                      Text(
+                        'Note: Blocking here is app-only.\nTo block at the system level, use the settings button.',
+                        style: TextStyle(color: Colors.red, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ),
                 )

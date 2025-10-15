@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:call_log/call_log.dart';
 import 'package:telephony/telephony.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DeviceDataScreen extends StatefulWidget {
   const DeviceDataScreen({Key? key}) : super(key: key);
@@ -14,14 +15,18 @@ class DeviceDataScreen extends StatefulWidget {
 class _DeviceDataScreenState extends State<DeviceDataScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Contact> _contacts = [];
+  List<Contact> _filteredContacts = [];
   List<CallLogEntry> _callLogs = [];
   List<SmsMessage> _smsMessages = [];
   bool _loading = true;
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _searchController.addListener(_filterContacts);
     _fetchData();
   }
 
@@ -38,15 +43,56 @@ class _DeviceDataScreenState extends State<DeviceDataScreen> with SingleTickerPr
     final sms = await telephony.getInboxSms(columns: [SmsColumn.ADDRESS, SmsColumn.BODY]);
     setState(() {
       _contacts = contacts;
+      _filteredContacts = contacts;
       _callLogs = callLogs.toList();
       _smsMessages = sms;
       _loading = false;
     });
   }
 
+  void _filterContacts() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredContacts = _contacts;
+      } else {
+        _filteredContacts = _contacts.where((contact) {
+          final name = contact.displayName.toLowerCase();
+          final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+          return name.contains(query) || phone.contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    // Remove any non-digit characters except + from phone number
+    final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    final Uri phoneUri = Uri(scheme: 'tel', path: cleanedNumber);
+    
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unable to make phone call')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error making call: $e')),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -122,19 +168,84 @@ class _DeviceDataScreenState extends State<DeviceDataScreen> with SingleTickerPr
   }
 
   Widget _buildContacts() {
-    if (_contacts.isEmpty) {
-      return const Center(child: Text('No contacts found'));
-    }
-    return ListView.builder(
-      itemCount: _contacts.length,
-      itemBuilder: (context, index) {
-        final contact = _contacts[index];
-        return ListTile(
-          leading: const Icon(Icons.person),
-          title: Text(contact.displayName),
-          subtitle: Text(contact.phones.isNotEmpty ? contact.phones.first.number : ''),
-        );
-      },
+    return Column(
+      children: [
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search contacts...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ),
+        // Contacts List
+        Expanded(
+          child: _filteredContacts.isEmpty
+              ? Center(
+                  child: Text(
+                    _contacts.isEmpty ? 'No contacts found' : 'No matching contacts',
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _filteredContacts.length,
+                  itemBuilder: (context, index) {
+                    final contact = _filteredContacts[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green.shade100,
+                        child: Text(
+                          contact.displayName.isNotEmpty
+                              ? contact.displayName[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: Colors.green.shade800,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        contact.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Text(
+                        contact.phones.isNotEmpty
+                            ? contact.phones.first.number
+                            : 'No phone number',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      trailing: contact.phones.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.phone, color: Colors.green),
+                              tooltip: 'Call ${contact.displayName}',
+                              onPressed: () {
+                                _makePhoneCall(contact.phones.first.number);
+                              },
+                            )
+                          : null,
+                      onTap: contact.phones.isNotEmpty
+                          ? () => _makePhoneCall(contact.phones.first.number)
+                          : null,
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
