@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:call_log/call_log.dart';
 import '../services/reputation_service.dart';
 import '../services/db_service.dart';
 import '../models/models.dart';
@@ -30,6 +32,73 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
     _loadSettings();
     _loadRecentCalls();
     _loadStats();
+    _requestPermissionsAndLoadDeviceCalls();
+  }
+
+  Future<void> _requestPermissionsAndLoadDeviceCalls() async {
+    final status = await Permission.phone.request();
+    if (status.isGranted) {
+      await _loadDeviceCallLogs();
+    }
+  }
+
+  Future<void> _loadDeviceCallLogs() async {
+    try {
+      final Iterable<CallLogEntry> entries = await CallLog.get();
+      final List<Map<String, dynamic>> deviceCalls = [];
+      
+      for (final entry in entries.take(50)) {
+        // Analyze each call for spam
+        final number = entry.number ?? 'Unknown';
+        if (number == 'Unknown' || number.isEmpty) continue;
+        
+        // Check reputation
+        final result = await _repService.checkNumber(number);
+        
+        final callData = {
+          'id': entry.timestamp.toString(),
+          'number': number,
+          'name': entry.name ?? 'Unknown',
+          'risk_score': result.riskScore,
+          'level': result.level.name,
+          'tags': result.tags,
+          'timestamp': DateTime.fromMillisecondsSinceEpoch(entry.timestamp!).toIso8601String(),
+          'type': _getCallTypeName(entry.callType),
+          'duration': entry.duration ?? 0,
+          'blocked': result.riskScore >= 60,
+        };
+        
+        deviceCalls.add(callData);
+        
+        // Auto-block high-risk calls
+        if (_autoBlockEnabled && result.riskScore >= 60) {
+          setState(() => _spamCallsBlocked++);
+          await _saveStats();
+        }
+      }
+      
+      setState(() {
+        _recentCalls = deviceCalls;
+      });
+      await _saveRecentCalls();
+    } catch (e) {
+      print('Error loading device call logs: $e');
+    }
+  }
+
+  String _getCallTypeName(CallType? type) {
+    switch (type) {
+      case CallType.incoming:
+        return 'Incoming';
+      case CallType.outgoing:
+        return 'Outgoing';
+      case CallType.missed:
+        return 'Missed';
+      case CallType.rejected:
+        return 'Rejected';
+      default:
+        return 'Unknown';
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -293,8 +362,20 @@ class _CallSpamScreenState extends State<CallSpamScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Call Spam Protection'),
+        title: const Text(
+          'Call Spam Protection',
+          style: TextStyle(
+            color: Color(0xFF006400),
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDeviceCallLogs,
+            tooltip: 'Refresh Device Calls',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {

@@ -55,62 +55,114 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Widget build(BuildContext context) {
       return Scaffold(
         appBar: AppBar(
-          title: Column(
+          title: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Text(
                 'Civic Fraud Protection',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  color: Color(0xFF006400),
+                ),
               ),
               Text(
                 'Dashboard',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                  color: Color(0xFF006400),
+                ),
               ),
             ],
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.shield),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const BlocklistScreen()));
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                switch (value) {
+                  case 'blocklist':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const BlocklistScreen()));
+                    break;
+                  case 'export':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExportScreen()));
+                    break;
+                  case 'threat_intel':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ThreatIntelligenceScreen()));
+                    break;
+                  case 'sms_spam':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const MessageSpamScreen()));
+                    break;
+                  case 'call_spam':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CallSpamScreen()));
+                    break;
+                  case 'realtime':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const RealTimeProtectionScreen()));
+                    break;
+                  case 'device_data':
+                    Navigator.pushNamed(context, '/device_data');
+                    break;
+                }
               },
-              tooltip: 'Blocklist',
-            ),
-            IconButton(
-              icon: const Icon(Icons.import_export),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ExportScreen()));
-              },
-              tooltip: 'Export/Import',
-            ),
-            IconButton(
-              icon: const Icon(Icons.security),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ThreatIntelligenceScreen()));
-              },
-              tooltip: 'Threat Intelligence',
-            ),
-            IconButton(
-              icon: const Icon(Icons.sms),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const MessageSpamScreen()));
-              },
-              tooltip: 'SMS Spam',
-            ),
-            IconButton(
-              icon: const Icon(Icons.phone),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const CallSpamScreen()));
-              },
-              tooltip: 'Call Spam',
-            ),
-            IconButton(
-              icon: const Icon(Icons.flash_on),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const RealTimeProtectionScreen()));
-              },
-              tooltip: 'Real-Time Protection',
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'blocklist',
+                  child: ListTile(
+                    leading: Icon(Icons.shield),
+                    title: Text('Blocklist'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                    leading: Icon(Icons.import_export),
+                    title: Text('Export/Import'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'threat_intel',
+                  child: ListTile(
+                    leading: Icon(Icons.security),
+                    title: Text('Threat Intelligence'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'sms_spam',
+                  child: ListTile(
+                    leading: Icon(Icons.sms),
+                    title: Text('SMS Spam Detection'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'call_spam',
+                  child: ListTile(
+                    leading: Icon(Icons.phone),
+                    title: Text('Call Spam Protection'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'realtime',
+                  child: ListTile(
+                    leading: Icon(Icons.flash_on),
+                    title: Text('Real-Time Protection'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'device_data',
+                  child: ListTile(
+                    leading: Icon(Icons.devices),
+                    title: Text('Device Data'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

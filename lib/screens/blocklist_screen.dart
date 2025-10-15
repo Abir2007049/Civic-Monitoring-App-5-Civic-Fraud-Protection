@@ -138,7 +138,14 @@ class _BlocklistScreenState extends State<BlocklistScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Blocked Numbers'),
+        title: const Text(
+          'Blocked Numbers',
+          style: TextStyle(
+            color: Color(0xFF006400),
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: _showAddDialog,

@@ -541,7 +541,14 @@ class _ExportScreenState extends State<ExportScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Data Management'),
+        title: const Text(
+          'Data Management',
+          style: TextStyle(
+            color: Color(0xFF006400),
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
       ),
       body: SafeArea(
         child: LayoutBuilder(

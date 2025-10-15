@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:telephony/telephony.dart';
 import '../services/sms_analysis_service.dart';
 import '../services/reputation_service.dart';
 import '../services/db_service.dart';
@@ -30,6 +32,78 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
     super.initState();
     _loadSettings();
     _loadRecentMessages();
+    _requestPermissionsAndLoadDeviceSMS();
+  }
+
+  Future<void> _requestPermissionsAndLoadDeviceSMS() async {
+    final status = await Permission.sms.request();
+    if (status.isGranted) {
+      await _loadDeviceSMS();
+    }
+  }
+
+  Future<void> _loadDeviceSMS() async {
+    try {
+      final Telephony telephony = Telephony.instance;
+      final List<SmsMessage> messages = await telephony.getInboxSms(
+        columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
+      );
+      
+      final List<Map<String, dynamic>> deviceMessages = [];
+      
+      for (final sms in messages.take(50)) {
+        // Skip messages with null or empty body
+        if (sms.body == null || sms.body!.isEmpty) continue;
+        
+        // Skip messages with null date
+        if (sms.date == null) continue;
+        
+        try {
+          // Analyze the message
+          final analysis = await _smsService.analyze(sms.body!);
+          final senderAddress = sms.address ?? 'Unknown';
+          final senderCheck = await _repService.checkNumber(senderAddress);
+          
+          final messageData = {
+            'id': sms.date.toString(),
+            'sender': senderAddress,
+            'message': sms.body!,
+            'content': sms.body!.length > 50 ? '${sms.body!.substring(0, 50)}...' : sms.body!,
+            'full_content': sms.body!,
+            'risk_score': analysis.riskScore,
+            'level': analysis.level.name,
+            'reasons': analysis.reasons,
+            'sender_risk': senderCheck.riskScore,
+            'timestamp': DateTime.fromMillisecondsSinceEpoch(sms.date!).toIso8601String(),
+            'blocked': analysis.riskScore >= 70 || senderCheck.riskScore >= 70,
+          };
+          
+          deviceMessages.add(messageData);
+        } catch (e) {
+          print('Error analyzing SMS from ${sms.address}: $e');
+          continue;
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _recentMessages = deviceMessages;
+        });
+        await _saveRecentMessages();
+      }
+    } catch (e) {
+      print('Error loading device SMS: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load messages: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveRecentMessages() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('recent_messages', jsonEncode(_recentMessages));
   }
 
   Future<void> _loadSettings() async {
@@ -53,11 +127,6 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
     setState(() {
       _recentMessages = messages.cast<Map<String, dynamic>>();
     });
-  }
-
-  Future<void> _saveRecentMessages() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('recent_messages', jsonEncode(_recentMessages));
   }
 
   Future<void> _analyzeMessage() async {
@@ -153,10 +222,16 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
   }
 
   Widget _buildMessageTile(Map<String, dynamic> message) {
-    final riskScore = message['risk_score'] as int;
-    final level = message['level'] as String;
+    final riskScore = message['risk_score'] as int? ?? 0;
+    final level = message['level'] as String? ?? 'low';
     final blocked = message['blocked'] as bool? ?? false;
     final autoProcessed = message['auto_processed'] as bool? ?? false;
+    
+    // Handle both 'content' and 'message' keys for backward compatibility
+    final content = (message['content'] ?? message['message'] ?? 'No content') as String;
+    final fullContent = (message['full_content'] ?? message['message'] ?? content) as String;
+    final sender = (message['sender'] ?? 'Unknown') as String;
+    final timestamp = message['timestamp'] as String?;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -172,14 +247,14 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
           ],
         ),
         title: Text(
-          message['content'] as String,
+          content,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('From: ${message['sender']}'),
+            Text('From: $sender'),
             Text('Risk: $riskScore/100 ($level)'),
             if (message['reasons'] != null && (message['reasons'] as List).isNotEmpty)
               Wrap(
@@ -196,32 +271,41 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
         ),
         trailing: blocked
             ? const Icon(Icons.block, color: Colors.red)
-            : Text('${DateTime.parse(message['timestamp'] as String).hour}:${DateTime.parse(message['timestamp'] as String).minute.toString().padLeft(2, '0')}'),
+            : timestamp != null
+                ? Text('${DateTime.parse(timestamp).hour}:${DateTime.parse(timestamp).minute.toString().padLeft(2, '0')}')
+                : const SizedBox.shrink(),
         onTap: () => _showMessageDetails(message),
       ),
     );
   }
 
   void _showMessageDetails(Map<String, dynamic> message) {
+    final sender = (message['sender'] ?? 'Unknown') as String;
+    final riskScore = message['risk_score'] as int? ?? 0;
+    final level = message['level'] as String? ?? 'low';
+    final fullContent = (message['full_content'] ?? message['message'] ?? message['content'] ?? 'No content') as String;
+    final reasons = message['reasons'] as List<dynamic>?;
+    final blocked = message['blocked'] as bool? ?? false;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Message Details'),
+        title: const Text('Message Details'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('From: ${message['sender']}'),
+              Text('From: $sender'),
               const SizedBox(height: 8),
-              Text('Risk Score: ${message['risk_score']}/100 (${message['level']})'),
+              Text('Risk Score: $riskScore/100 ($level)'),
               const SizedBox(height: 8),
               const Text('Full Message:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(message['full_content'] as String),
+              Text(fullContent),
               const SizedBox(height: 8),
-              if (message['reasons'] != null && (message['reasons'] as List).isNotEmpty) ...[
+              if (reasons != null && reasons.isNotEmpty) ...[
                 const Text('Risk Factors:', style: TextStyle(fontWeight: FontWeight.bold)),
-                ...(message['reasons'] as List<dynamic>).map((r) => Text('• $r')),
+                ...reasons.map((r) => Text('• ${r.toString()}')),
               ],
             ],
           ),
@@ -231,17 +315,19 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          if (!(message['blocked'] as bool? ?? false))
+          if (!blocked)
             ElevatedButton(
               onPressed: () async {
                 await AppDatabase.instance.addBlocked(
-                  message['sender'] as String,
+                  sender,
                   reason: 'Manually blocked from message analysis',
                 );
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Blocked ${message['sender']}')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Blocked $sender')),
+                  );
+                }
               },
               child: const Text('Block Sender'),
             ),
@@ -260,15 +346,28 @@ class _MessageSpamScreenState extends State<MessageSpamScreen> {
           children: const [
             Text(
               'Fraud Detection',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Color(0xFF006400),
+              ),
             ),
             Text(
               'Message Spam',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+                color: Color(0xFF006400),
+              ),
             ),
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDeviceSMS,
+            tooltip: 'Refresh Device Messages',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {

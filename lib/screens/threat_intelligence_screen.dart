@@ -216,7 +216,14 @@ class _ThreatIntelligenceScreenState extends State<ThreatIntelligenceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Threat Intelligence'),
+        title: const Text(
+          'Threat Intelligence',
+          style: TextStyle(
+            color: Color(0xFF006400),
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: () {

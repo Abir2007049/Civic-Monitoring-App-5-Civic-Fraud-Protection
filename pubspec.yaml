@@ -45,6 +45,10 @@ dependencies:
   path_provider: ^2.1.4         # Safe directory access for DB
   path: ^1.9.0                  # Path utilities for DB file
   shared_preferences: ^2.3.2     # Local storage
+  permission_handler: ^11.0.1    # Permissions for device data
+  flutter_contacts: ^1.1.9       # Access contacts (modern alternative)
+  call_log: ^4.0.0               # Access call logs (Android)
+  telephony: ^0.2.0              # Access SMS (Android)
 
 dev_dependencies:
   flutter_test:

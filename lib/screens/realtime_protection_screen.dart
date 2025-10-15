@@ -99,6 +99,8 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
   }
 
   void _simulateBackgroundActivity() {
+    if (!mounted) return; // Don't update if widget is disposed
+    
     final activities = [
       {'type': 'call_scan', 'message': 'Incoming call from +1234567890 analyzed - Safe', 'threat': false},
       {'type': 'sms_scan', 'message': 'SMS from friend analyzed - Clean', 'threat': false},
@@ -111,21 +113,23 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
     if (!_realTimeScanning && DateTime.now().second % 8 == 0) {
       final activity = activities[DateTime.now().millisecond % activities.length];
       
-      setState(() {
-        _recentActivity.insert(0, {
-          ...activity,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-        if (_recentActivity.length > 20) {
-          _recentActivity = _recentActivity.take(20).toList();
-        }
+      if (mounted) {
+        setState(() {
+          _recentActivity.insert(0, {
+            ...activity,
+            'timestamp': DateTime.now().toIso8601String(),
+          });
+          if (_recentActivity.length > 20) {
+            _recentActivity = _recentActivity.take(20).toList();
+          }
 
-        if (activity['type'].toString().contains('call')) _callsAnalyzed++;
-        if (activity['type'].toString().contains('sms')) _messagesScanned++;
-        if (activity['threat'] == true) _threatsBlocked++;
-      });
-      
-      _saveStats();
+          if (activity['type'].toString().contains('call')) _callsAnalyzed++;
+          if (activity['type'].toString().contains('sms')) _messagesScanned++;
+          if (activity['threat'] == true) _threatsBlocked++;
+        });
+        
+        _saveStats();
+      }
     }
   }
 
@@ -174,7 +178,14 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Real-Time Protection'),
+        title: const Text(
+          'Real-Time Protection',
+          style: TextStyle(
+            color: Color(0xFF006400),
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -438,7 +449,6 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
 
   Future<void> _runProtectionTest() async {
     setState(() => _realTimeScanning = true);
-    
     final testActivities = [
       {'type': 'call_scan', 'message': 'Testing call protection...', 'threat': false},
       {'type': 'call_block', 'message': 'Blocked test spam call from 1800TEST', 'threat': true},
@@ -447,7 +457,6 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
       {'type': 'url_scan', 'message': 'Testing URL protection...', 'threat': false},
       {'type': 'url_block', 'message': 'Blocked access to suspicious domain', 'threat': true},
     ];
-
     for (final activity in testActivities) {
       await Future.delayed(const Duration(milliseconds: 800));
       setState(() {
@@ -455,16 +464,16 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
           ...activity,
           'timestamp': DateTime.now().toIso8601String(),
         });
+        if (_recentActivity.length > 20) {
+          _recentActivity = _recentActivity.take(20).toList();
+        }
+        if (activity['type'].toString().contains('call')) _callsAnalyzed++;
+        if (activity['type'].toString().contains('sms')) _messagesScanned++;
         if (activity['threat'] == true) _threatsBlocked++;
       });
+      await _saveStats();
     }
-
     setState(() => _realTimeScanning = false);
-    _saveStats();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Protection test completed successfully!')),
-    );
   }
 
   void _resetStats() {
@@ -475,54 +484,5 @@ class _RealTimeProtectionScreenState extends State<RealTimeProtectionScreen> wit
       _recentActivity.clear();
     });
     _saveStats();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Statistics reset')),
-    );
-  }
-
-  void _showDetailedStats() {
-    final safeInteractions = _callsAnalyzed + _messagesScanned - _threatsBlocked;
-    final protectionRate = _threatsBlocked > 0 && (_callsAnalyzed + _messagesScanned) > 0
-        ? (_threatsBlocked / (_callsAnalyzed + _messagesScanned) * 100).toStringAsFixed(1)
-        : '0.0';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detailed Protection Report'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('📊 Total Interactions: ${_callsAnalyzed + _messagesScanned}'),
-              Text('✅ Safe Interactions: $safeInteractions'),
-              Text('🚫 Threats Blocked: $_threatsBlocked'),
-              Text('📞 Calls Analyzed: $_callsAnalyzed'),
-              Text('📱 Messages Scanned: $_messagesScanned'),
-              const SizedBox(height: 12),
-              Text('🛡️ Protection Rate: $protectionRate%'),
-              const SizedBox(height: 12),
-              const Text('Protection Status:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('• Call Protection: ${_callProtection ? "Active" : "Disabled"}'),
-              Text('• SMS Protection: ${_smsProtection ? "Active" : "Disabled"}'),
-              Text('• URL Protection: ${_urlProtection ? "Active" : "Disabled"}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
   }
 }
